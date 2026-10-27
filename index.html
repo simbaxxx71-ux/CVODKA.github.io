@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Баланс">
+<meta name="theme-color" content="#0B1220">
+<title>Баланс</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root {
+    --bg: #0B1220; --card: #151E32; --card2: #1A2438; --text: #F3F6FF;
+    --muted: #8B97B0; --accent: #4F8CFF; --green: #2ECC71; --red: #FF5C5C;
+    --border: rgba(255,255,255,0.08);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    min-height: 100%; overflow-x: hidden;
+  }
+  body { padding-top: calc(12px + var(--safe-top)); padding-bottom: calc(90px + var(--safe-bottom)); }
+  body.gate-only { padding-bottom: calc(20px + var(--safe-bottom)); }
+  .app { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+  h1 { font-size: 26px; font-weight: 700; margin: 6px 0 4px; letter-spacing: -0.03em; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+
+  .metric {
+    background: linear-gradient(145deg, #1B2A4A, #121A2C);
+    border: 1px solid var(--border); border-radius: 18px; padding: 16px 18px; margin-bottom: 10px;
+  }
+  .metric .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .metric .value { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .metric .value.plus { color: var(--green); }
+  .metric .value.minus { color: var(--red); }
+  .metric.secondary .value { font-size: 22px; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 8px; }
+  .action-btn {
+    border: 0; border-radius: 18px; padding: 22px 12px; font-size: 17px; font-weight: 700; color: white;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .action-btn .icon { font-size: 28px; line-height: 1; }
+  .action-btn.inc { background: linear-gradient(145deg, #27AE60, #1E8449); }
+  .action-btn.exp { background: linear-gradient(145deg, #E74C3C, #C0392B); }
+  .action-btn:active { transform: scale(0.98); opacity: 0.92; }
+  .action-btn:disabled, .btn:disabled, .add-cat:disabled { opacity: 0.4; pointer-events: none; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 14px; margin-bottom: 12px;
+  }
+  .card h2 {
+    font-size: 12px; font-weight: 600; margin: 0 0 10px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th {
+    text-align: left; color: var(--muted); font-weight: 500;
+    padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 11px;
+  }
+  .table th.r, .table td.r { text-align: right; }
+  .table td {
+    padding: 10px 4px; border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums; vertical-align: middle;
+  }
+  .table tr:last-child td { border-bottom: 0; }
+  .table .cat { font-weight: 600; }
+  .table .minus { color: var(--red); }
+  .table .plus { color: var(--green); }
+  .table .desc { color: var(--muted); font-weight: 400; font-size: 11px; display: block; margin-top: 2px; }
+
+  .seg {
+    display: flex; background: var(--card2); border-radius: 12px; padding: 4px; margin-bottom: 12px;
+  }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--muted);
+    padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  }
+  .seg button.active { background: var(--accent); color: white; }
+
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+  input, select, textarea {
+    width: 100%; background: var(--card2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 12px; padding: 14px; font-size: 16px; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%238B97B0' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center;
+  }
+  textarea { min-height: 88px; resize: vertical; font-family: inherit; font-size: 13px; }
+
+  .cat-row { display: flex; gap: 8px; align-items: stretch; }
+  .cat-row select, .cat-row input { flex: 1; }
+  .cat-row .add-cat {
+    border: 1px solid var(--border); background: var(--card2); color: var(--accent);
+    border-radius: 12px; padding: 0 14px; font-size: 22px; font-weight: 600; line-height: 1; min-width: 48px;
+  }
+  .add-cat.active-minus { background: rgba(255,92,92,0.2); border-color: var(--red); color: var(--red); }
+
+  .btn {
+    display: block; width: 100%; border: 0; border-radius: 14px;
+    padding: 16px; font-size: 16px; font-weight: 700; margin-top: 16px; color: white;
+  }
+  .btn-primary { background: var(--accent); }
+  .btn-green { background: var(--green); color: #06210f; }
+  .btn-red { background: var(--red); }
+  .btn-ghost {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    font-weight: 600; font-size: 14px; padding: 12px;
+  }
+  .btn:active { opacity: 0.9; }
+
+  .empty { text-align: center; color: var(--muted); padding: 20px 10px; font-size: 14px; }
+
+  .nav {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: rgba(11,18,32,0.94);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    padding: 8px 12px calc(8px + var(--safe-bottom));
+    display: flex; justify-content: center; z-index: 40;
+  }
+  .nav-inner { max-width: 480px; width: 100%; display: flex; gap: 6px; }
+  .nav button {
+    flex: 1; border: 0; background: transparent; color: var(--muted);
+    padding: 8px 4px; border-radius: 12px; font-size: 11px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .nav button.active { color: var(--accent); background: rgba(79,140,255,0.12); }
+  .nav button span.icon { font-size: 18px; }
+
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    z-index: 80; display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    width: 100%; max-width: 480px; background: var(--card);
+    border-radius: 20px 20px 0 0; padding: 18px 16px calc(18px + var(--safe-bottom));
+    border: 1px solid var(--border); border-bottom: 0; max-height: 92vh; overflow-y: auto;
+  }
+  .modal h3 { margin: 0 0 4px; font-size: 18px; }
+  .modal .close {
+    position: absolute; right: 16px; top: 14px; border: 0; background: var(--card2);
+    color: var(--muted); width: 32px; height: 32px; border-radius: 16px; font-size: 18px;
+  }
+  .modal-wrap { position: relative; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(100px + var(--safe-bottom));
+    transform: translateX(-50%) translateY(12px);
+    background: #24314A; color: white; padding: 12px 18px; border-radius: 12px;
+    font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; transition: .25s; z-index: 100;
+    white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar .btn { width: auto; flex: 1; margin-top: 0; min-width: 100px; }
+
+  .role-badge {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 10px;
+    border-radius: 20px; margin-left: 8px; vertical-align: middle;
+  }
+  .role-badge.owner { background: rgba(79,140,255,0.2); color: var(--accent); }
+  .role-badge.viewer { background: rgba(139,151,176,0.2); color: var(--muted); }
+
+  .banner-view {
+    background: rgba(139,151,176,0.12); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; font-size: 13px; color: var(--muted); margin-bottom: 12px;
+  }
+
+  #screen-gate { padding-bottom: 24px; }
+  .gate-card { margin-top: 12px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  .sync-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); margin-right: 6px;
+  }
+  .sync-dot.on { background: var(--green); }
+  .sync-dot.err { background: var(--red); }
+</style>
+</head>
+<body class="gate-only">
+<div class="app">
+
+  <!-- ===== ВХОД ===== -->
+  <section id="screen-gate" class="screen active">
+    <h1>Баланс</h1>
+    <p class="subtitle">Общий доступ с разных устройств</p>
+
+    <div class="seg" id="gate-seg">
+      <button type="button" data-gate="login" class="active">Войти</button>
+      <button type="button" data-gate="create">Создать</button>
+      <button type="button" data-gate="setup">Firebase</button>
+    </div>
+
+    <div id="gate-login" class="card gate-card">
+      <h2>Вход в пространство</h2>
+      <label>ID пространства</label>
+      <input type="text" id="login-space" placeholder="например balans-family" autocomplete="username">
+      <label>Код доступа</label>
+      <input type="password" id="login-code" placeholder="код владельца или наблюдателя" autocomplete="current-password">
+      <button type="button" class="btn btn-primary" id="btn-login">Войти</button>
+      <p class="hint">Владелец — полный доступ. Наблюдатель — только просмотр.</p>
+    </div>
+
+    <div id="gate-create" class="card gate-card" style="display:none">
+      <h2>Новое пространство</h2>
+      <label>ID пространства (латиница)</label>
+      <input type="text" id="create-space" placeholder="balans-my" autocomplete="off">
+      <label>Код владельца</label>
+      <input type="password" id="create-owner" placeholder="минимум 4 символа" autocomplete="new-password">
+      <label>Код наблюдателя</label>
+      <input type="password" id="create-viewer" placeholder="для тех, кто только смотрит" autocomplete="new-password">
+      <button type="button" class="btn btn-green" id="btn-create">Создать и войти</button>
+      <p class="hint">Сначала настройте Firebase (вкладка «Firebase»). Запомните оба кода — восстановить их нельзя.</p>
+    </div>
+
+    <div id="gate-setup" class="card gate-card" style="display:none">
+      <h2>Подключение Firebase</h2>
+      <p class="hint" style="margin-top:0">Вставьте весь текст firebaseConfig в поле ниже — поля заполнятся сами. Либо введите вручную.</p>
+
+      <label>Вставьте сюда весь текст из Firebase</label>
+      <textarea id="fb-paste" placeholder="Вставьте любой фрагмент с apiKey, databaseURL..."></textarea>
+      <button type="button" class="btn btn-ghost" id="btn-parse-paste" style="margin-top:8px">Распознать и заполнить поля</button>
+
+      <label style="margin-top:16px">apiKey *</label>
+      <input type="text" id="fb-apiKey" placeholder="AIza..." autocomplete="off">
+
+      <label>databaseURL *</label>
+      <input type="text" id="fb-databaseURL" placeholder="https://xxxx.firebaseio.com или https://xxxx.firebasedatabase.app" autocomplete="off">
+
+      <label>projectId *</label>
+      <input type="text" id="fb-projectId" placeholder="my-project-id" autocomplete="off">
+
+      <label>authDomain</label>
+      <input type="text" id="fb-authDomain" placeholder="my-project.firebaseapp.com" autocomplete="off">
+
+      <label>appId</label>
+      <input type="text" id="fb-appId" placeholder="1:123:web:abc" autocomplete="off">
+
+      <label>storageBucket</label>
+      <input type="text" id="fb-storageBucket" placeholder="my-project.appspot.com" autocomplete="off">
+
+      <label>messagingSenderId</label>
+      <input type="text" id="fb-messagingSenderId" placeholder="123456789" autocomplete="off">
+
+      <button type="button" class="btn btn-primary" id="btn-save-fb">Сохранить и подключить</button>
+
+      <p class="hint">
+        <b>Где взять значения</b><br>
+        1. console.firebase.google.com → проект<br>
+        2. Build → <b>Realtime Database</b> → Create → test mode<br>
+        3. Вкладка Rules → вставьте правила ниже → Publish<br>
+        <code style="color:var(--accent)">{"rules":{".read":true,".write":true}}</code><br>
+        4. ⚙️ Project settings → Your apps → Web → Register<br>
+        5. Скопируйте показанный код → вставьте в верхнее поле → «Распознать»<br>
+        6. Если databaseURL пустой — скопируйте URL из страницы Realtime Database
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== ГЛАВНАЯ ===== -->
+  <section id="screen-home" class="screen">
+    <h1>Баланс <span class="role-badge" id="role-badge">—</span></h1>
+    <p class="subtitle"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Локально</span> · <span id="space-label"></span></p>
+
+    <div class="banner-view" id="view-banner" style="display:none">Режим наблюдателя: только просмотр, изменения недоступны</div>
+
+    <div class="metric">
+      <div class="label">Сумма за день</div>
+      <div class="value" id="day-sum">0</div>
+    </div>
+    <div class="metric secondary">
+      <div class="label">Сумма за месяц</div>
+      <div class="value" id="month-sum">0</div>
+    </div>
+
+    <div class="actions" id="actions-row">
+      <button type="button" class="action-btn inc" id="btn-open-inc"><span class="icon">＋</span>Доход</button>
+      <button type="button" class="action-btn exp" id="btn-open-exp"><span class="icon">−</span>Расход</button>
+    </div>
+
+    <div class="card" style="margin-top:8px">
+      <h2>Остаток</h2>
+      <div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums" id="balance">0</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">Начальная: <span id="initial-view">0</span></div>
+    </div>
+
+    <button type="button" class="btn btn-ghost" id="btn-copy-viewer-link" style="margin-top:8px;display:none">Ссылка для наблюдателя</button>
+    <button type="button" class="btn btn-ghost" id="btn-logout" style="margin-top:8px">Выйти из пространства</button>
+  </section>
+
+  <!-- ===== СПИСОК ===== -->
+  <section id="screen-list" class="screen">
+    <h1>Список</h1>
+    <p class="subtitle">Операции · как в таблице</p>
+
+    <div class="banner-view" id="view-banner-2" style="display:none">Просмотр · удаление и загрузка недоступны</div>
+
+    <div class="seg" id="filter-seg">
+      <button type="button" data-filter="all" class="active">Все</button>
+      <button type="button" data-filter="inc">Доходы</button>
+      <button type="button" data-filter="exp">Расходы</button>
+    </div>
+
+    <div class="toolbar" id="owner-toolbar">
+      <button type="button" class="btn btn-ghost" id="btn-export-csv">CSV</button>
+      <button type="button" class="btn btn-ghost" id="btn-export-json">JSON</button>
+      <button type="button" class="btn btn-ghost" id="btn-import">Загрузить</button>
+      <input type="file" id="file-import" accept=".json,.csv,application/json,text/csv" style="display:none">
+    </div>
+
+    <div class="card">
+      <table class="table" id="ops-table">
+        <thead><tr><th>Дата</th><th>Категория</th><th class="r">Сумма</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Итоги по категориям</h2>
+      <table class="table" id="cat-table">
+        <thead><tr><th>Категория</th><th>Тип</th><th class="r">Сумма</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card" id="initial-card">
+      <h2>Начальная сумма</h2>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="initial-input" inputmode="decimal" placeholder="2319650" style="flex:1">
+        <button type="button" class="btn btn-primary" id="save-initial" style="width:auto;margin:0;padding:12px 16px">OK</button>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-ghost" id="btn-clear" style="color:var(--red);border-color:rgba(255,92,92,0.35)">Очистить все операции</button>
+  </section>
+</div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="modal-wrap">
+      <button type="button" class="close" id="modal-close">×</button>
+      <h3 id="modal-title">Доход</h3>
+      <p class="subtitle" id="modal-sub" style="margin-bottom:8px">Ручной ввод</p>
+      <label>Сумма</label>
+      <div class="cat-row">
+        <input type="text" id="f-sum" inputmode="decimal" placeholder="0" autocomplete="off" enterkeyhint="done" style="flex:1">
+        <button type="button" class="add-cat" id="btn-toggle-minus" title="Минус">−</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Кнопка «−» — для отрицательной суммы</div>
+      <label>Категория</label>
+      <div class="cat-row">
+        <select id="f-cat"></select>
+        <button type="button" class="add-cat" id="btn-add-cat" title="Новая категория">＋</button>
+      </div>
+      <label>Описание</label>
+      <input type="text" id="f-desc" placeholder="Необязательно">
+      <label>Дата</label>
+      <input type="date" id="f-date">
+      <button type="button" class="btn btn-primary" id="btn-save">Записать</button>
+    </div>
+  </div>
+</div>
+
+<nav class="nav" id="main-nav" style="display:none">
+  <div class="nav-inner">
+    <button type="button" data-screen="home" class="active"><span class="icon">⌂</span>Главная</button>
+    <button type="button" data-screen="list"><span class="icon">☰</span>Список</button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+const DEFAULT_EXP = ["Перетекающий","Мд","Накопления","З1","ЖГ(5)","Рм","ДЛФ","Арт","Ид","СИ","Гриша Леб (19.09)","З2","МД","Женя","Прочее"];
+const DEFAULT_INC = ["Н","Рд","bot","bb","Rap","Акб","Abcex","Траст","БитГет","ЛП","М1","М4","ГН","Яша","Влад","Радик","Арк","Яр3","Кино","Юра","Форвард","ДЧ","Илья","Полазна","Гатти","Коля","Вадим","Исп","МСК","Затр Б","Затр %","ВТБИ","Беларус М","Радик неделя","Машина 19.10","Падел","Прочее"];
+
+const LS_FB = "balans_fb_config_v1";
+const LS_SESSION = "balans_session_v1";
+const LS_LOCAL = "balans_ios_v2";
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+let fbApp = null;
+let fbDb = null;
+let fbRef = null;
+let fbConnected = false;
+let role = null; // 'owner' | 'viewer'
+let spaceId = null;
+let suppressRemote = false;
+
+let state = emptyState();
+let txType = "inc";
+let filter = "all";
+
+function emptyState() {
+  return { initial: 2319650, items: [], expCats: DEFAULT_EXP.slice(), incCats: DEFAULT_INC.slice() };
+}
+
+function fmt(n) { return Math.round(Number(n) || 0).toLocaleString("ru-RU"); }
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function monthPrefix() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+}
+function toast(msg) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2200);
+}
+function isOwner() { return role === "owner"; }
+
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function loadFbConfig() {
+  try { return JSON.parse(localStorage.getItem(LS_FB) || "null"); } catch(e) { return null; }
+}
+function saveFbConfig(cfg) { localStorage.setItem(LS_FB, JSON.stringify(cfg)); }
+
+function initFirebase() {
+  const cfg = loadFbConfig();
+  if (!cfg || !cfg.apiKey || !cfg.databaseURL) return false;
+  try {
+    if (!firebase.apps.length) fbApp = firebase.initializeApp(cfg);
+    else fbApp = firebase.app();
+    fbDb = firebase.database();
+    fbConnected = true;
+    return true;
+  } catch (e) {
+    console.error(e);
+    fbConnected = false;
+    return false;
+  }
+}
+
+function setSyncUI(mode) {
+  const dot = $("#sync-dot");
+  const lab = $("#sync-label");
+  dot.className = "sync-dot";
+  if (mode === "on") { dot.classList.add("on"); lab.textContent = "Онлайн · синхронизация"; }
+  else if (mode === "err") { dot.classList.add("err"); lab.textContent = "Ошибка связи"; }
+  else { lab.textContent = "Локально"; }
+}
+
+function applyRoleUI() {
+  const owner = isOwner();
+  $("#role-badge").textContent = owner ? "Владелец" : "Наблюдатель";
+  $("#role-badge").className = "role-badge " + (owner ? "owner" : "viewer");
+  $("#view-banner").style.display = owner ? "none" : "block";
+  $("#view-banner-2").style.display = owner ? "none" : "block";
+  $("#actions-row").style.display = owner ? "grid" : "none";
+  $("#owner-toolbar").style.display = owner ? "flex" : "none";
+  $("#initial-card").style.display = owner ? "block" : "none";
+  $("#btn-clear").style.display = owner ? "block" : "none";
+  const linkBtn = $("#btn-copy-viewer-link");
+  if (linkBtn) linkBtn.style.display = owner ? "block" : "none";
+  $("#space-label").textContent = spaceId || "";
+}
+
+function appBaseUrl() {
+  // без query/hash — чтобы можно было добавить свои параметры
+  return location.origin + location.pathname + location.search.replace(/[?&](space|code)=[^&]*/g, "").replace(/[?&]$/, "").replace(/^\?&/, "?");
+}
+
+function buildAccessLink(space, code) {
+  const url = new URL(location.href);
+  // чистим старые параметры
+  url.searchParams.delete("space");
+  url.searchParams.delete("code");
+  url.searchParams.set("space", space);
+  url.searchParams.set("code", code);
+  return url.toString();
+}
+
+async function copyText(str) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(str);
+      return true;
+    }
+  } catch (e) {}
+  const ta = document.createElement("textarea");
+  ta.value = str;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    return true;
+  } catch (e) {
+    document.body.removeChild(ta);
+    prompt("Скопируйте ссылку:", str);
+    return false;
+  }
+}
+
+
+function enterApp() {
+  document.body.classList.remove("gate-only");
+  $("#screen-gate").classList.remove("active");
+  $("#main-nav").style.display = "flex";
+  applyRoleUI();
+  showScreen("home");
+  renderHome();
+  renderList();
+}
+
+function leaveApp() {
+  if (fbRef) { fbRef.off(); fbRef = null; }
+  role = null; spaceId = null;
+  localStorage.removeItem(LS_SESSION);
+  document.body.classList.add("gate-only");
+  $("#main-nav").style.display = "none";
+  $$(".screen").forEach(s => s.classList.remove("active"));
+  $("#screen-gate").classList.add("active");
+  setSyncUI("off");
+}
+
+function persistSession() {
+  localStorage.setItem(LS_SESSION, JSON.stringify({ spaceId, role }));
+}
+
+function spacePath(id) {
+  const safe = String(id || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 48);
+  return "spaces/" + safe;
+}
+
+async function pushStateRemote() {
+  if (!isOwner() || !fbRef || !fbConnected) return;
+  suppressRemote = true;
+  try {
+    await fbRef.child("data").set({
+      initial: state.initial,
+      items: state.items,
+      expCats: state.expCats,
+      incCats: state.incCats,
+      updatedAt: Date.now()
+    });
+    setSyncUI("on");
+  } catch (e) {
+    console.error(e);
+    setSyncUI("err");
+    toast("Не удалось сохранить в облако");
+  } finally {
+    setTimeout(() => { suppressRemote = false; }, 300);
+  }
+}
+
+function saveLocal() {
+  localStorage.setItem(LS_LOCAL, JSON.stringify(state));
+}
+
+async function saveAll() {
+  saveLocal();
+  await pushStateRemote();
+}
+
+function applyRemoteData(data) {
+  if (!data) return;
+  state.initial = data.initial != null ? Number(data.initial) : state.initial;
+  state.items = Array.isArray(data.items) ? data.items : [];
+  state.expCats = Array.isArray(data.expCats) && data.expCats.length ? data.expCats : state.expCats;
+  state.incCats = Array.isArray(data.incCats) && data.incCats.length ? data.incCats : state.incCats;
+  saveLocal();
+  renderHome();
+  if ($("#screen-list").classList.contains("active")) renderList();
+}
+
+function attachListener() {
+  if (!fbDb || !spaceId) return;
+  if (fbRef) fbRef.off();
+  fbRef = fbDb.ref(spacePath(spaceId));
+  fbRef.on("value", (snap) => {
+    if (suppressRemote) return;
+    const v = snap.val();
+    if (!v) return;
+    if (v.data) applyRemoteData(v.data);
+    setSyncUI("on");
+  }, (err) => {
+    console.error(err);
+    setSyncUI("err");
+  });
+}
+
+async function loginToSpace(id, code) {
+  if (!initFirebase()) {
+    toast("Сначала настройте Firebase");
+    return;
+  }
+  const safe = String(id || "").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  if (!safe) { toast("Укажите ID пространства"); return; }
+  if (!code) { toast("Укажите код"); return; }
+
+  const ref = fbDb.ref(spacePath(safe));
+  let snap;
+  try { snap = await ref.once("value"); }
+  catch (e) { toast("Нет доступа к базе"); setSyncUI("err"); return; }
+
+  const val = snap.val();
+  if (!val || !val.meta) { toast("Пространство не найдено"); return; }
+
+  const hash = await sha256(code);
+  if (hash === val.meta.ownerHash) role = "owner";
+  else if (hash === val.meta.viewerHash) role = "viewer";
+  else { toast("Неверный код"); return; }
+
+  spaceId = safe;
+  if (val.data) applyRemoteData(val.data);
+  else state = emptyState();
+
+  persistSession();
+  attachListener();
+  enterApp();
+  toast(role === "owner" ? "Вход: владелец" : "Вход: наблюдатель");
+}
+
+async function createSpace(id, ownerCode, viewerCode) {
+  if (!initFirebase()) { toast("Сначала настройте Firebase"); return; }
+  const safe = String(id || "").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  if (!safe || safe.length < 3) { toast("ID: латиница, мин. 3 символа"); return; }
+  if (!ownerCode || ownerCode.length < 4) { toast("Код владельца: мин. 4 символа"); return; }
+  if (!viewerCode || viewerCode.length < 4) { toast("Код наблюдателя: мин. 4 символа"); return; }
+  if (ownerCode === viewerCode) { toast("Коды должны отличаться"); return; }
+
+  const ref = fbDb.ref(spacePath(safe));
+  const existing = await ref.once("value");
+  if (existing.exists()) { toast("Такой ID уже занят"); return; }
+
+  const ownerHash = await sha256(ownerCode);
+  const viewerHash = await sha256(viewerCode);
+  const data = emptyState();
+  await ref.set({
+    meta: { ownerHash, viewerHash, createdAt: Date.now() },
+    data: { ...data, updatedAt: Date.now() }
+  });
+
+  spaceId = safe;
+  role = "owner";
+  state = data;
+  persistSession();
+  attachListener();
+  enterApp();
+  toast("Пространство создано");
+  const link = buildAccessLink(safe, viewerCode);
+  setTimeout(async () => {
+    if (confirm("Скопировать ссылку для наблюдателя?\n\n" + link)) {
+      const ok = await copyText(link);
+      toast(ok ? "Ссылка скопирована" : "Ссылка показана");
+    }
+  }, 400);
+}
+
+/* ===== UI calculations ===== */
+function fillCats() {
+  const list = txType === "exp" ? state.expCats : state.incCats;
+  const sel = $("#f-cat");
+  const cur = sel.value;
+  sel.innerHTML = list.map(c => `<option value="${c}">${c}</option>`).join("");
+  if (cur && list.includes(cur)) sel.value = cur;
+}
+function calcPeriod() {
+  const day = todayISO();
+  const month = monthPrefix();
+  let dayNet = 0, monthNet = 0, inc = 0, exp = 0;
+  for (const it of state.items) {
+    const val = Number(it.sum) || 0;
+    const signed = it.type === "inc" ? val : -val;
+    if (it.date === day) dayNet += signed;
+    if (it.date && it.date.startsWith(month)) monthNet += signed;
+    if (it.type === "inc") inc += val; else exp += val;
+  }
+  return { dayNet, monthNet, inc, exp, balance: (state.initial || 0) + inc - exp };
+}
+function renderHome() {
+  const t = calcPeriod();
+  const dayEl = $("#day-sum");
+  dayEl.textContent = (t.dayNet >= 0 ? "+" : "") + fmt(t.dayNet);
+  dayEl.className = "value " + (t.dayNet >= 0 ? "plus" : "minus");
+  const monEl = $("#month-sum");
+  monEl.textContent = (t.monthNet >= 0 ? "+" : "") + fmt(t.monthNet);
+  monEl.className = "value " + (t.monthNet >= 0 ? "plus" : "minus");
+  $("#balance").textContent = fmt(t.balance);
+  $("#initial-view").textContent = fmt(state.initial || 0);
+}
+function renderList() {
+  const items = [...state.items]
+    .filter(it => filter === "all" || it.type === filter)
+    .sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+  const tbody = $("#ops-table tbody");
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty">Нет операций</div></td></tr>`;
+  } else {
+    tbody.innerHTML = items.map(it => {
+      const val = Number(it.sum) || 0;
+      let display, dcls;
+      if (it.type === "exp") {
+        display = (val >= 0 ? "−" : "+") + fmt(Math.abs(val));
+        dcls = val >= 0 ? "minus" : "plus";
+      } else {
+        display = (val >= 0 ? "+" : "−") + fmt(Math.abs(val));
+        dcls = val >= 0 ? "plus" : "minus";
+      }
+      const desc = it.desc ? `<span class="desc">${it.desc}</span>` : "";
+      return `<tr data-id="${it.id}"><td>${it.date || ""}</td><td class="cat">${it.cat || ""}${desc}</td><td class="r ${dcls}">${display}</td></tr>`;
+    }).join("");
+    tbody.querySelectorAll("tr[data-id]").forEach(tr => {
+      tr.addEventListener("click", async () => {
+        if (!isOwner()) { toast("Только просмотр"); return; }
+        if (!confirm("Удалить операцию?")) return;
+        state.items = state.items.filter(x => x.id !== tr.dataset.id);
+        await saveAll();
+        renderList(); renderHome();
+        toast("Удалено");
+      });
+    });
+  }
+  const map = {};
+  for (const it of state.items) {
+    if (filter !== "all" && it.type !== filter) continue;
+    const key = it.type + "|" + it.cat;
+    if (!map[key]) map[key] = { cat: it.cat, type: it.type, sum: 0 };
+    map[key].sum += Number(it.sum) || 0;
+  }
+  const rows = Object.values(map).sort((a, b) => Math.abs(b.sum) - Math.abs(a.sum));
+  const cbody = $("#cat-table tbody");
+  if (!rows.length) cbody.innerHTML = `<tr><td colspan="3"><div class="empty">Нет данных</div></td></tr>`;
+  else {
+    cbody.innerHTML = rows.map(r => {
+      const tip = r.type === "exp" ? "Расход" : "Доход";
+      let display, cls;
+      if (r.type === "exp") { display = (r.sum >= 0 ? "−" : "+") + fmt(Math.abs(r.sum)); cls = r.sum >= 0 ? "minus" : "plus"; }
+      else { display = (r.sum >= 0 ? "+" : "−") + fmt(Math.abs(r.sum)); cls = r.sum >= 0 ? "plus" : "minus"; }
+      return `<tr><td class="cat">${r.cat}</td><td>${tip}</td><td class="r ${cls}">${display}</td></tr>`;
+    }).join("");
+  }
+  $("#initial-input").value = state.initial || "";
+}
+function showScreen(name) {
+  $$("#screen-home, #screen-list").forEach(s => s.classList.remove("active"));
+  const el = $("#screen-" + name);
+  if (el) el.classList.add("active");
+  $$("#main-nav button").forEach(b => b.classList.toggle("active", b.dataset.screen === name));
+  if (name === "home") renderHome();
+  if (name === "list") renderList();
+}
+function openModal(type) {
+  if (!isOwner()) { toast("Только просмотр"); return; }
+  txType = type;
+  $("#modal-title").textContent = type === "inc" ? "Доход" : "Расход";
+  $("#modal-sub").textContent = "Ручной ввод · категория из списка или ＋";
+  $("#btn-save").textContent = type === "inc" ? "Записать доход" : "Записать расход";
+  $("#btn-save").className = "btn " + (type === "inc" ? "btn-green" : "btn-red");
+  fillCats();
+  $("#f-sum").value = "";
+  $("#f-desc").value = "";
+  $("#f-date").value = todayISO();
+  $("#btn-toggle-minus").classList.remove("active-minus");
+  $("#modal-bg").classList.add("show");
+  setTimeout(() => $("#f-sum").focus(), 200);
+}
+function closeModal() { $("#modal-bg").classList.remove("show"); }
+
+function normalizeSumInput(raw) {
+  return String(raw || "").trim().replace(/\s/g, "").replace(",", ".");
+}
+function isNegativeInput() { return normalizeSumInput($("#f-sum").value).startsWith("-"); }
+function updateMinusBtn() {
+  const btn = $("#btn-toggle-minus");
+  if (isNegativeInput()) btn.classList.add("active-minus"); else btn.classList.remove("active-minus");
+}
+
+/* events */
+$$("#gate-seg button").forEach(b => {
+  b.addEventListener("click", () => {
+    $$("#gate-seg button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    const g = b.dataset.gate;
+    $("#gate-login").style.display = g === "login" ? "block" : "none";
+    $("#gate-create").style.display = g === "create" ? "block" : "none";
+    $("#gate-setup").style.display = g === "setup" ? "block" : "none";
+    if (g === "setup") {
+      loadFbFieldsFromStorage();
+    }
+  });
+});
+
+function extractCfgField(text, key) {
+  const t = String(text || "");
+  // "apiKey": "value" OR apiKey: "value" OR apiKey: 'value'
+  const re = new RegExp(
+    key + '\\s*[:=]\\s*["\']([^"\']+)["\']',
+    "i"
+  );
+  const m = t.match(re);
+  return m ? m[1].trim() : "";
+}
+
+function fillFbFieldsFromText(raw) {
+  const t = String(raw || "");
+  const map = {
+    apiKey: "fb-apiKey",
+    databaseURL: "fb-databaseURL",
+    projectId: "fb-projectId",
+    authDomain: "fb-authDomain",
+    appId: "fb-appId",
+    storageBucket: "fb-storageBucket",
+    messagingSenderId: "fb-messagingSenderId"
+  };
+  let found = 0;
+  for (const [key, id] of Object.entries(map)) {
+    const val = extractCfgField(t, key);
+    if (val) {
+      $("#" + id).value = val;
+      found++;
+    }
+  }
+  // иногда URL только как firebaseio.com ссылка в тексте
+  if (!$("#fb-databaseURL").value) {
+    const u = t.match(/https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)[^\s"'`]*/i);
+    if (u) $("#fb-databaseURL").value = u[0].replace(/\/$/, "");
+  }
+  if (!$("#fb-authDomain").value && $("#fb-projectId").value) {
+    $("#fb-authDomain").value = $("#fb-projectId").value + ".firebaseapp.com";
+  }
+  return found;
+}
+
+function readFbFields() {
+  const apiKey = ($("#fb-apiKey").value || "").trim();
+  const databaseURL = ($("#fb-databaseURL").value || "").trim().replace(/\/$/, "");
+  const projectId = ($("#fb-projectId").value || "").trim();
+  if (!apiKey) throw new Error("Укажите apiKey");
+  if (!databaseURL) throw new Error("Укажите databaseURL (из Realtime Database)");
+  if (!projectId) throw new Error("Укажите projectId");
+  const cfg = {
+    apiKey,
+    databaseURL,
+    projectId,
+    authDomain: ($("#fb-authDomain").value || "").trim() || (projectId + ".firebaseapp.com"),
+    appId: ($("#fb-appId").value || "").trim(),
+    storageBucket: ($("#fb-storageBucket").value || "").trim(),
+    messagingSenderId: ($("#fb-messagingSenderId").value || "").trim()
+  };
+  return cfg;
+}
+
+function loadFbFieldsFromStorage() {
+  const cfg = loadFbConfig();
+  if (!cfg) return;
+  if (cfg.apiKey) $("#fb-apiKey").value = cfg.apiKey;
+  if (cfg.databaseURL) $("#fb-databaseURL").value = cfg.databaseURL;
+  if (cfg.projectId) $("#fb-projectId").value = cfg.projectId;
+  if (cfg.authDomain) $("#fb-authDomain").value = cfg.authDomain;
+  if (cfg.appId) $("#fb-appId").value = cfg.appId;
+  if (cfg.storageBucket) $("#fb-storageBucket").value = cfg.storageBucket;
+  if (cfg.messagingSenderId) $("#fb-messagingSenderId").value = cfg.messagingSenderId;
+}
+
+$("#btn-parse-paste").addEventListener("click", () => {
+  const n = fillFbFieldsFromText($("#fb-paste").value);
+  if (n > 0) toast("Распознано полей: " + n);
+  else toast("Не найдено полей — введите вручную");
+});
+
+$("#btn-save-fb").addEventListener("click", () => {
+  try {
+    // если поля пустые, попробуем распознать paste
+    if (!$("#fb-apiKey").value && $("#fb-paste").value) {
+      fillFbFieldsFromText($("#fb-paste").value);
+    }
+    const cfg = readFbFields();
+    saveFbConfig(cfg);
+    if (initFirebase()) toast("Firebase подключён");
+    else toast("Ошибка инициализации — проверьте databaseURL");
+  } catch (e) {
+    console.error(e);
+    toast(e.message || "Ошибка сохранения");
+  }
+});
+
+$("#btn-login").addEventListener("click", () => loginToSpace($("#login-space").value, $("#login-code").value));
+$("#btn-create").addEventListener("click", () => createSpace($("#create-space").value, $("#create-owner").value, $("#create-viewer").value));
+$("#btn-logout").addEventListener("click", () => { if (confirm("Выйти?")) leaveApp(); });
+
+$("#btn-copy-viewer-link").addEventListener("click", async () => {
+  if (!isOwner() || !spaceId) return;
+  const code = prompt("Введите код наблюдателя (тот, что задавали при создании):");
+  if (!code) return;
+  // проверка что код верный
+  try {
+    if (!fbDb) { toast("Нет связи с Firebase"); return; }
+    const snap = await fbDb.ref(spacePath(spaceId) + "/meta").once("value");
+    const meta = snap.val() || {};
+    const hash = await sha256(code);
+    if (hash !== meta.viewerHash) {
+      toast("Код наблюдателя неверный");
+      return;
+    }
+    const link = buildAccessLink(spaceId, code);
+    const ok = await copyText(link);
+    toast(ok ? "Ссылка для наблюдателя скопирована" : "Скопируйте ссылку вручную");
+    if (!ok) prompt("Ссылка:", link);
+  } catch (e) {
+    console.error(e);
+    toast("Не удалось создать ссылку");
+  }
+});
+
+
+$$("#main-nav button").forEach(b => b.addEventListener("click", () => showScreen(b.dataset.screen)));
+$("#btn-open-inc").addEventListener("click", () => openModal("inc"));
+$("#btn-open-exp").addEventListener("click", () => openModal("exp"));
+$("#modal-close").addEventListener("click", closeModal);
+$("#modal-bg").addEventListener("click", (e) => { if (e.target === $("#modal-bg")) closeModal(); });
+
+$("#btn-toggle-minus").addEventListener("click", () => {
+  let v = normalizeSumInput($("#f-sum").value);
+  if (!v || v === "-" || v === "." || v === "-.") { $("#f-sum").value = "-"; updateMinusBtn(); $("#f-sum").focus(); return; }
+  $("#f-sum").value = v.startsWith("-") ? v.slice(1) : ("-" + v);
+  updateMinusBtn(); $("#f-sum").focus();
+});
+$("#f-sum").addEventListener("input", () => {
+  let v = $("#f-sum").value.replace(/,/g, ".");
+  let neg = v.startsWith("-");
+  v = v.replace(/-/g, "").replace(/[^\d.]/g, "");
+  const parts = v.split(".");
+  if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
+  $("#f-sum").value = (neg ? "-" : "") + v;
+  updateMinusBtn();
+});
+
+$("#btn-add-cat").addEventListener("click", () => {
+  if (!isOwner()) return;
+  const name = prompt("Название новой категории:");
+  if (!name || !name.trim()) return;
+  const n = name.trim();
+  const list = txType === "exp" ? state.expCats : state.incCats;
+  if (!list.includes(n)) list.push(n);
+  fillCats(); $("#f-cat").value = n; toast("Категория добавлена");
+});
+
+$("#btn-save").addEventListener("click", async () => {
+  if (!isOwner()) return;
+  const raw = normalizeSumInput($("#f-sum").value);
+  if (raw === "" || raw === "-" || raw === "." || raw === "-.") { toast("Введите сумму"); return; }
+  const sum = parseFloat(raw);
+  if (isNaN(sum)) { toast("Некорректная сумма"); return; }
+  if (sum === 0) { toast("Сумма не может быть 0"); return; }
+  state.items.push({
+    id: String(Date.now()) + Math.random().toString(36).slice(2, 6),
+    type: txType, sum,
+    cat: $("#f-cat").value || "Прочее",
+    desc: ($("#f-desc").value || "").trim(),
+    date: $("#f-date").value || todayISO()
+  });
+  await saveAll();
+  closeModal(); renderHome();
+  toast(txType === "inc" ? "Доход учтён" : "Расход учтён");
+});
+
+$$("#filter-seg button").forEach(b => {
+  b.addEventListener("click", () => {
+    $$("#filter-seg button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    filter = b.dataset.filter;
+    renderList();
+  });
+});
+
+$("#save-initial").addEventListener("click", async () => {
+  if (!isOwner()) return;
+  const v = parseFloat(String($("#initial-input").value).replace(",", "."));
+  if (isNaN(v)) { toast("Некорректная сумма"); return; }
+  state.initial = v;
+  await saveAll();
+  renderHome(); renderList();
+  toast("Сохранено");
+});
+
+$("#btn-clear").addEventListener("click", async () => {
+  if (!isOwner()) return;
+  if (!confirm("Удалить все операции?")) return;
+  state.items = [];
+  await saveAll();
+  renderList(); renderHome();
+  toast("Очищено");
+});
+
+function exportCSV() {
+  const lines = ["Дата;Тип;Категория;Сумма;Описание"];
+  const items = [...state.items].sort((a, b) => (a.date + a.id).localeCompare(b.date + b.id));
+  for (const it of items) {
+    lines.push([it.date || "", it.type === "inc" ? "Доход" : "Расход", it.cat || "", String(it.sum).replace(".", ","), (it.desc || "").replace(/;/g, ",")].join(";"));
+  }
+  const t = calcPeriod();
+  lines.push("", "Начальная сумма;;" + (state.initial || 0), "Итого доходы;;" + t.inc, "Итого расходы;;" + t.exp, "Остаток;;" + t.balance);
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "balans_" + todayISO() + ".csv"; a.click();
+  toast("CSV выгружен");
+}
+$("#btn-export-csv").addEventListener("click", () => { if (!isOwner()) return; exportCSV(); });
+$("#btn-export-json").addEventListener("click", () => {
+  if (!isOwner()) return;
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "balans_" + todayISO() + ".json"; a.click();
+  toast("JSON выгружен");
+});
+
+function restoreFromJSON(obj) {
+  if (!obj || typeof obj !== "object") throw new Error("bad json");
+  const items = Array.isArray(obj.items) ? obj.items : [];
+  const cleanItems = [];
+  for (const it of items) {
+    if (!it || (it.type !== "inc" && it.type !== "exp")) continue;
+    const sum = Number(it.sum);
+    if (isNaN(sum) || sum === 0) continue;
+    cleanItems.push({ id: String(it.id || Date.now() + Math.random()), type: it.type, sum, cat: String(it.cat || "Прочее"), desc: String(it.desc || ""), date: String(it.date || todayISO()) });
+  }
+  const expCats = Array.isArray(obj.expCats) && obj.expCats.length ? obj.expCats.map(String) : state.expCats.slice();
+  const incCats = Array.isArray(obj.incCats) && obj.incCats.length ? obj.incCats.map(String) : state.incCats.slice();
+  for (const it of cleanItems) {
+    const list = it.type === "exp" ? expCats : incCats;
+    if (it.cat && !list.includes(it.cat)) list.push(it.cat);
+  }
+  let initial = state.initial;
+  if (obj.initial != null && !isNaN(Number(obj.initial))) initial = Number(obj.initial);
+  state = { initial, items: cleanItems, expCats, incCats };
+}
+function parseCSV(text) {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) throw new Error("empty");
+  const sep = lines[0].includes(";") ? ";" : ",";
+  const items = []; let initial = null;
+  for (let i = 0; i < lines.length; i++) {
+    const cols = lines[i].split(sep).map(c => c.trim());
+    if (!cols.length) continue;
+    if (i === 0 && /дата/i.test(cols[0])) continue;
+    if (/^начальная/i.test(cols[0])) {
+      const n = parseFloat(String(cols[cols.length-1] || "").replace(",", "."));
+      if (!isNaN(n)) initial = n;
+      continue;
+    }
+    if (/^итого|^остаток|^за день|^за месяц/i.test(cols[0])) continue;
+    const typeRaw = (cols[1] || "").toLowerCase();
+    let type = null;
+    if (typeRaw.indexOf("доход") >= 0 || typeRaw === "inc") type = "inc";
+    if (typeRaw.indexOf("расход") >= 0 || typeRaw === "exp") type = "exp";
+    if (!type) continue;
+    const sum = parseFloat(String(cols[3] || "").replace(/\s/g, "").replace(",", "."));
+    if (isNaN(sum) || sum === 0) continue;
+    items.push({ id: String(Date.now()) + Math.random().toString(36).slice(2, 8), type, sum, cat: cols[2] || "Прочее", desc: cols[4] || "", date: cols[0] || todayISO() });
+  }
+  return { items, initial };
+}
+
+$("#btn-import").addEventListener("click", () => { if (!isOwner()) return; $("#file-import").click(); });
+$("#file-import").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file || !isOwner()) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const text = String(reader.result || "");
+      const name = (file.name || "").toLowerCase();
+      if (name.endsWith(".json") || text.trim().startsWith("{")) {
+        const obj = JSON.parse(text);
+        if (!confirm("Заменить данные из файла?")) return;
+        restoreFromJSON(obj);
+      } else {
+        if (!confirm("Загрузить CSV? Список операций будет заменён.")) return;
+        const parsed = parseCSV(text);
+        state.items = parsed.items;
+        if (parsed.initial != null) state.initial = parsed.initial;
+        for (const it of parsed.items) {
+          const list = it.type === "exp" ? state.expCats : state.incCats;
+          if (it.cat && !list.includes(it.cat)) list.push(it.cat);
+        }
+      }
+      await saveAll();
+      renderHome(); renderList();
+      toast("Данные загружены");
+    } catch (err) {
+      console.error(err);
+      toast("Ошибка файла");
+    }
+  };
+  reader.readAsText(file, "UTF-8");
+});
+
+/* auto login from URL ?space=...&code=... */
+(async function boot() {
+  const cfg = loadFbConfig();
+  if (cfg) initFirebase();
+
+  const params = new URLSearchParams(location.search);
+  const qSpace = (params.get("space") || "").trim();
+  const qCode = (params.get("code") || "").trim();
+
+  if (qSpace && qCode) {
+    if (!fbConnected) {
+      toast("Сначала настройте Firebase (вкладка Firebase)");
+      $("#login-space").value = qSpace;
+      // переключим на setup если нет конфига
+      $$("#gate-seg button").forEach(b => b.classList.toggle("active", b.dataset.gate === "setup"));
+      $("#gate-login").style.display = "none";
+      $("#gate-create").style.display = "none";
+      $("#gate-setup").style.display = "block";
+      loadFbFieldsFromStorage();
+      return;
+    }
+    toast("Вход по ссылке...");
+    await loginToSpace(qSpace, qCode);
+    // уберём код из адресной строки (чтобы не светился)
+    try {
+      const clean = new URL(location.href);
+      clean.searchParams.delete("code");
+      // space можно оставить или тоже убрать
+      history.replaceState({}, "", clean.pathname + (clean.searchParams.toString() ? "?" + clean.searchParams.toString() : "") + clean.hash);
+    } catch (e) {}
+    return;
+  }
+
+  try {
+    const sess = JSON.parse(localStorage.getItem(LS_SESSION) || "null");
+    if (sess && sess.spaceId) {
+      $("#login-space").value = sess.spaceId;
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "Баланс",
+  "short_name": "Баланс",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "orientation": "portrait",
+  "lang": "ru"
+}
